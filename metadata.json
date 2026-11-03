@@ -1,0 +1,6 @@
+{
+  "name": "Leon Vasari — VHS Filmography",
+  "description": "Interactive 3D VHS filmography shelf and archival monograph for fictional director Leon Vasari (1958–1989).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

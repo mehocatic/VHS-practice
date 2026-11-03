@@ -1,0 +1,186 @@
+/* 3D Shelf Stage and Scene Layout */
+.shelf-viewport {
+  perspective: 2200px;
+  perspective-origin: 50% 50%;
+  touch-action: pan-y;
+  position: fixed;
+  left: 0;
+  width: 100vw;
+  top: calc(50% - var(--H) / 2 - 40px);
+  height: calc(var(--H) + 80px);
+  overflow: visible;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+.tape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.tape-face {
+  position: absolute;
+  height: var(--H);
+  top: calc(-1 * var(--H) / 2);
+  backface-visibility: hidden;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.sp-face {
+  width: var(--ws);
+  left: calc(-1 * var(--ws) / 2);
+  transform: translateZ(calc(var(--d) / 2));
+}
+
+.cv-face {
+  width: var(--d);
+  left: calc(-1 * var(--d) / 2);
+  transform: rotateY(90deg) translateZ(calc(var(--ws) / 2));
+  box-shadow: 0 30px 60px -28px rgba(20, 16, 10, 0.55);
+}
+
+/* Play Ring */
+.play-ring {
+  position: fixed;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--cobalt);
+  color: var(--cobalt);
+  background-color: rgba(237, 235, 230, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 35;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* Caption Mask Container */
+.caption-mask-line {
+  position: relative;
+  overflow: hidden;
+  width: min(92vw, 760px);
+  text-align: center;
+}
+
+.caption-line-slot {
+  display: block;
+  width: 100%;
+}
+
+/* Custom Cursor */
+#custom-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  pointer-events: none;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
+.cursor-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background-color: transparent;
+  transition: transform 0.5s var(--ease), background-color 0.4s var(--ease), border-color 0.4s var(--ease);
+}
+
+.cursor-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--ink);
+  transition: transform 0.4s var(--ease), opacity 0.4s var(--ease);
+}
+
+.cursor-label {
+  position: absolute;
+  color: #ffffff;
+  font-family: "Inter Tight", "Noto Sans JP", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: scale(0);
+  transition: transform 0.45s var(--ease);
+  pointer-events: none;
+  white-space: pre-line;
+}
+
+/* Cursor State Variations */
+#custom-cursor.state-spine .cursor-ring {
+  transform: scale(0.72);
+}
+
+#custom-cursor.state-btn .cursor-ring {
+  transform: scale(0.55);
+}
+#custom-cursor.state-btn .cursor-dot {
+  transform: scale(0);
+}
+
+#custom-cursor.state-open .cursor-ring {
+  transform: scale(1.75);
+  background-color: var(--cobalt);
+  border-color: var(--cobalt);
+}
+#custom-cursor.state-open .cursor-dot {
+  transform: scale(0);
+}
+#custom-cursor.state-open .cursor-label {
+  transform: scale(1);
+}
+
+/* Detail dialog */
+.detail-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-color: var(--sheet);
+  visibility: hidden;
+  will-change: clip-path, transform;
+}
+
+.detail-line-mask {
+  overflow: hidden;
+  display: block;
+}
+
+.detail-line-inner {
+  display: block;
+  will-change: transform;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  #custom-cursor {
+    display: none !important;
+  }
+}

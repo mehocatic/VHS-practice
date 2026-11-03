@@ -1,0 +1,417 @@
+<!-- Height Probe to read computed px height of var(--H) -->
+<div #heightProbe style="position: fixed; left: -9999px; top: -9999px; visibility: hidden; height: var(--H); pointer-events: none;" aria-hidden="true"></div>
+
+<!-- Paper Grain Layer (Fixed, z-index 40, multiply blend, opacity .55) -->
+<svg class="fixed inset-0 w-full h-full pointer-events-none z-40 opacity-55 mix-blend-multiply" aria-hidden="true">
+  <filter id="grain-filter" x="0%" y="0%" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+    <feColorMatrix type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.42  0 0 0 0 0.38  0 0 0 0.22 0" />
+  </filter>
+  <rect width="100%" height="100%" filter="url(#grain-filter)" />
+</svg>
+
+<!-- 1. TOP BAR -->
+<header class="fixed top-0 left-0 w-full h-[64px] md:h-[84px] px-4 md:px-8 grid grid-cols-[1fr_auto_1fr] items-center z-30 pointer-events-auto">
+  <!-- Left: Back link -->
+  <div class="flex items-center justify-start">
+    <button
+      type="button"
+      (click)="jumpToDecade('ALL', 0)"
+      class="box lbl hover:opacity-75 transition-opacity interactive-ctrl"
+      aria-label="Back to filmography start"
+    >
+      BACK / 戻る
+    </button>
+  </div>
+
+  <!-- Centre: Vasari Logo Stack in Cobalt -->
+  <div class="flex flex-col items-center justify-center text-[var(--cobalt)] gap-[5px] select-none text-center">
+    <span class="font-logo-kanji text-[17px] md:text-[22px] font-bold leading-none tracking-[0.04em]">
+      莱昂·瓦萨里
+    </span>
+    <span class="font-sans-vasari font-semibold text-[7.5px] md:text-[9px] leading-none tracking-[0.34em] pl-[0.34em]">
+      LEON VASARI
+    </span>
+  </div>
+
+  <!-- Right: Career label -->
+  <div class="hidden md:flex items-center justify-end">
+    <span class="lbl tracking-[0.09em] text-[var(--ink)]">
+      CAREER 1958年〜1989年
+    </span>
+  </div>
+</header>
+
+<!-- 2. DECADE TABS -->
+<nav
+  #tabsNav
+  aria-label="Decades"
+  class="fixed left-1/2 -translate-x-1/2 z-30 flex items-center justify-center select-none"
+  style="top: calc(50% - var(--H) / 2 - 70px);"
+  [style.top]="'calc(50% - var(--H) / 2 - 86px)'"
+>
+  <div class="relative flex items-center bg-transparent">
+    <!-- Cobalt sliding indicator -->
+    <div
+      #tabIndicator
+      class="absolute left-0 top-0 h-[23px] bg-[var(--cobalt)] transition-all duration-600 ease-[var(--ease)] pointer-events-none z-0"
+      style="opacity: 0;"
+    ></div>
+
+    <!-- Buttons -->
+    @for (tab of decades; track tab.decade; let idx = $index) {
+      <button
+        type="button"
+        [attr.data-decade]="tab.decade"
+        (click)="jumpToDecade(tab.decade, tab.firstFilmIdx)"
+        class="box lbl relative z-10 h-[23px] px-[7px] md:px-[11px] -ml-[1px] border border-[var(--rule)] uppercase text-[9px] md:text-[10.5px] transition-colors duration-450 interactive-ctrl"
+        [class.text-white]="activeDecade() === tab.decade"
+        [class.text-[var(--ink)]]="activeDecade() !== tab.decade"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+</nav>
+
+<!-- 3. THE SHELF (3D Stage) -->
+<section
+  #shelfViewport
+  aria-label="Filmography shelf"
+  class="shelf-viewport"
+  (pointerdown)="onShelfPointerDown($event)"
+  (pointermove)="onShelfPointerMove($event)"
+  (pointerup)="onShelfPointerUp($event)"
+  (pointercancel)="onShelfPointerUp($event)"
+  (wheel)="onShelfWheel($event)"
+>
+  <div class="stage">
+    @for (tape of virtualTapes; track tape.virtualIndex) {
+      <div
+        class="tape"
+        role="button"
+        tabindex="0"
+        [attr.aria-label]="tape.film.title"
+        (pointerenter)="onTapePointerEnter(tape.virtualIndex)"
+        (pointerleave)="onTapePointerLeave()"
+        (click)="onTapeClick(tape.virtualIndex)"
+        (keydown.enter)="onTapeClick(tape.virtualIndex)"
+        (keydown.space)="onTapeClick(tape.virtualIndex)"
+      >
+        <!-- Spine Face (Front of cuboid) -->
+        <div
+          class="tape-face sp-face"
+          [style.backgroundImage]="tape.spineStyle.backgroundImage"
+          [style.backgroundSize]="tape.spineStyle.backgroundSize"
+          [style.backgroundPosition]="tape.spineStyle.backgroundPosition"
+        ></div>
+
+        <!-- Cover Face (Right side turned front when active) -->
+        <div
+          class="tape-face cv-face"
+          [style.backgroundImage]="tape.coverStyle.backgroundImage"
+          [style.backgroundSize]="tape.coverStyle.backgroundSize"
+          [style.backgroundPosition]="tape.coverStyle.backgroundPosition"
+        ></div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- 4. PLAY RING -->
+<button
+  #playRing
+  type="button"
+  (click)="openDetail()"
+  aria-label="Open film details"
+  class="play-ring interactive-ctrl"
+>
+  <svg class="w-[12px] h-[12px] ml-[2px] fill-current" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 5v14l11-7z" />
+  </svg>
+</button>
+
+<!-- 5. CAPTION -->
+<div
+  class="fixed left-1/2 -translate-x-1/2 flex flex-col items-center justify-center gap-[9px] pointer-events-none select-none z-30"
+  style="top: calc(50% + var(--H) / 2 + 30px);"
+  aria-live="polite"
+>
+  <!-- Title Line Mask -->
+  <div class="caption-mask-line">
+    <div #captionTitle class="relative flex items-center justify-center min-h-[35px]"></div>
+  </div>
+
+  <!-- Subtitle Line Mask -->
+  <div class="caption-mask-line">
+    <div #captionSubtitle class="relative flex items-center justify-center min-h-[16px]"></div>
+  </div>
+
+  <!-- Year Line Mask -->
+  <div class="caption-mask-line">
+    <div #captionYear class="relative flex items-center justify-center min-h-[16px]"></div>
+  </div>
+</div>
+
+<!-- 6. NAVIGATION ARROWS -->
+<button
+  type="button"
+  (click)="prevFilm()"
+  aria-label="Previous film"
+  class="fixed z-30 w-[44px] h-[44px] flex items-center justify-center text-[var(--ink)] hover:opacity-70 transition-opacity interactive-ctrl left-[6px] md:left-[20px]"
+  style="top: calc(50% + var(--H) / 2 + 40px);"
+>
+  <svg class="w-[18px] h-[10px] stroke-current fill-none stroke-[1.2]" viewBox="0 0 18 10" aria-hidden="true">
+    <path d="M5 1 L1 5 L5 9" />
+    <path d="M1 5 L17 5" />
+  </svg>
+</button>
+
+<button
+  type="button"
+  (click)="nextFilm()"
+  aria-label="Next film"
+  class="fixed z-30 w-[44px] h-[44px] flex items-center justify-center text-[var(--ink)] hover:opacity-70 transition-opacity interactive-ctrl right-[6px] md:right-[20px]"
+  style="top: calc(50% + var(--H) / 2 + 40px);"
+>
+  <svg class="w-[18px] h-[10px] stroke-current fill-none stroke-[1.2]" viewBox="0 0 18 10" aria-hidden="true">
+    <path d="M13 1 L17 5 L13 9" />
+    <path d="M1 5 L17 5" />
+  </svg>
+</button>
+
+<!-- 7. FOOTER -->
+<footer class="fixed bottom-[18px] md:bottom-[26px] left-[16px] md:left-[32px] right-[16px] md:right-[32px] flex items-center justify-between z-30 select-none pointer-events-auto">
+  <span class="lbl text-[9px] md:text-[10.5px] text-[var(--ink)]">
+    © LEON VASARI. ALL RIGHTS RESERVED.
+  </span>
+  <div class="flex items-center gap-3">
+    <a href="#facebook" class="lbl text-[9px] md:text-[10.5px] text-[var(--ink)] no-underline hover:opacity-70 transition-opacity interactive-ctrl">
+      FB
+    </a>
+    <span class="lbl text-[9px] md:text-[10.5px] text-[var(--ink)]">/</span>
+    <a href="#twitter" class="lbl text-[9px] md:text-[10.5px] text-[var(--ink)] no-underline hover:opacity-70 transition-opacity interactive-ctrl">
+      TW
+    </a>
+  </div>
+</footer>
+
+<!-- 8. CUSTOM CURSOR -->
+<div id="custom-cursor" #customCursor aria-hidden="true">
+  <div class="cursor-ring"></div>
+  <div class="cursor-dot"></div>
+  <div class="cursor-label">
+    OPEN<br />開く
+  </div>
+</div>
+
+<!-- 9. DETAIL VIEW DIALOG (Paper Growth & Ink Reveal) -->
+<div
+  #detailDialog
+  class="detail-dialog flex flex-col overflow-y-auto md:overflow-hidden select-none"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="detail-film-title"
+>
+  <!-- Top Bar in Detail -->
+  <div class="w-full h-[64px] md:h-[84px] px-4 md:px-8 flex items-center justify-between shrink-0 relative z-10">
+    <button
+      type="button"
+      (click)="closeDetail()"
+      class="box lbl hover:opacity-75 transition-opacity interactive-ctrl"
+      aria-label="Close film details"
+    >
+      CLOSE / 閉じる
+    </button>
+
+    <!-- Center Logo in Detail -->
+    <div class="flex flex-col items-center justify-center text-[var(--cobalt)] gap-[5px] select-none text-center">
+      <span class="font-logo-kanji text-[17px] md:text-[22px] font-bold leading-none tracking-[0.04em]">
+        莱昂·瓦萨里
+      </span>
+      <span class="font-sans-vasari font-semibold text-[7.5px] md:text-[9px] leading-none tracking-[0.34em] pl-[0.34em]">
+        LEON VASARI
+      </span>
+    </div>
+
+    <!-- Empty balancer for 3-zone symmetry -->
+    <div class="w-[80px]"></div>
+  </div>
+
+  <!-- Detail Content: 2 Columns on Desktop, Single Column on Mobile -->
+  <div class="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-[4vw] px-[22px] md:px-[7vw] pt-4 md:pt-[20px] pb-10 md:pb-[56px] items-center max-w-[1500px] mx-auto">
+    
+    <!-- Mobile: Poster First (on mobile <= 767px), Desktop: Left Typography -->
+    <div class="order-2 md:order-1 flex flex-col justify-center max-w-[520px] gap-[18px]">
+      
+      <!-- Line 0: Subtitle -->
+      <div class="detail-line-mask">
+        <span class="detail-line-inner lbl text-[var(--cobalt)] text-[11px] md:text-[12px] font-medium tracking-[0.1em]">
+          {{ activeFilm().romaji }} / {{ activeFilm().kanji }}
+        </span>
+      </div>
+
+      <!-- Line 1: Title -->
+      <div class="detail-line-mask">
+        <h1
+          id="detail-film-title"
+          class="detail-line-inner font-serif-vasari text-[36px] md:text-[clamp(44px,5.4vw,84px)] leading-none tracking-[-0.025em] text-[var(--ink)]"
+        >
+          {{ activeFilm().title }}
+        </h1>
+      </div>
+
+      <!-- Line 2: Meta -->
+      <div class="detail-line-mask">
+        <span class="detail-line-inner lbl text-[var(--muted)] text-[10px] md:text-[11px] tracking-[0.1em]">
+          {{ activeFilm().year }} / {{ activeFilm().genre | uppercase }} / {{ activeFilm().minutes }} MIN
+        </span>
+      </div>
+
+      <!-- Line 3: Synopsis -->
+      <div class="detail-line-mask">
+        <p class="detail-line-inner font-serif-vasari text-[16px] md:text-[17px] leading-[1.5] text-[var(--ink)] max-w-[42ch]">
+          {{ activeFilm().synopsis }}
+        </p>
+      </div>
+
+      <!-- Line 4: Credit -->
+      <div class="detail-line-mask">
+        <p class="detail-line-inner font-serif-vasari italic text-[14px] md:text-[15px] text-[var(--muted)]">
+          Written and directed by Leon Vasari. 監督作品
+        </p>
+      </div>
+
+      <!-- Line 5: Watch Action -->
+      <div class="detail-line-mask pt-[10px]">
+        <button
+          type="button"
+          (click)="watchFilm()"
+          class="detail-line-inner box lbl h-[44px] px-[20px] border border-[var(--cobalt)] text-[var(--cobalt)] hover:bg-[var(--cobalt)] hover:text-white transition-colors interactive-ctrl"
+        >
+          WATCH THE FILM / 映画を見る
+        </button>
+      </div>
+    </div>
+
+    <!-- Poster Column: SVG with Ragged Ink Blots -->
+    <div class="order-1 md:order-2 flex items-center justify-center w-full h-[46svh] md:h-[min(100%,78vh)]">
+      <svg
+        viewBox="0 0 474 900"
+        class="w-auto h-full max-h-[78vh] aspect-[474/900] shadow-2xl drop-shadow-lg"
+        aria-hidden="true"
+      >
+        <defs>
+          <!-- Ink mask with turbulent displacement -->
+          <filter id="ink-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="7" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="120" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+
+          <mask id="ink-mask" maskUnits="userSpaceOnUse" x="-200" y="-200" width="874" height="1300">
+            <rect x="-200" y="-200" width="874" height="1300" fill="black" />
+            <g filter="url(#ink-filter)">
+              @for (b of blobs(); track $index) {
+                <circle [attr.cx]="b.cx" [attr.cy]="b.cy" [attr.r]="b.radius" fill="white" />
+              }
+            </g>
+          </mask>
+
+          <clipPath id="poster-clip">
+            <rect x="0" y="0" width="474" height="900" rx="3" />
+          </clipPath>
+        </defs>
+
+        <g clip-path="url(#poster-clip)">
+          <g mask="url(#ink-mask)">
+            <image
+              [attr.href]="activePosterProps().href"
+              [attr.x]="activePosterProps().x"
+              [attr.y]="activePosterProps().y"
+              [attr.width]="activePosterProps().width"
+              [attr.height]="activePosterProps().height"
+              preserveAspectRatio="none"
+            />
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- 10. ARCHIVAL SCREENING / PROJECTION ROOM OVERLAY -->
+@if (isScreening()) {
+  <div
+    class="fixed inset-0 z-70 bg-[#0A0A0A] text-[#EDEBE6] flex flex-col justify-between p-6 md:p-12 animate-fade-in select-none"
+    role="dialog"
+    aria-modal="true"
+    aria-label="35mm Film Screening"
+  >
+    <!-- Top Screening Bar -->
+    <div class="flex items-center justify-between border-b border-white/20 pb-4">
+      <div class="flex items-center gap-3">
+        <span class="box lbl border-white/40 text-white text-[10px]">
+          35MM ARCHIVAL REEL
+        </span>
+        <span class="lbl text-white/60 tracking-wider text-[10px]">
+          REEL NO. {{ activeFilm().year }}-{{ activeFilm().id | uppercase }}
+        </span>
+      </div>
+      <button
+        type="button"
+        (click)="closeScreening()"
+        class="box lbl border-white/40 text-white hover:bg-white hover:text-black transition-colors interactive-ctrl"
+      >
+        EXIT SCREENING / 戻る
+      </button>
+    </div>
+
+    <!-- Centre Archival Projector View -->
+    <div class="relative flex-1 flex flex-col items-center justify-center my-6 overflow-hidden">
+      <!-- Simulated Film Frame -->
+      <div class="relative w-full max-w-[800px] aspect-[16/10] bg-[#121212] border-2 border-[#242424] rounded flex flex-col items-center justify-center p-8 shadow-2xl overflow-hidden">
+        
+        <!-- Projection Light Beam Vignette -->
+        <div class="absolute inset-0 bg-radial from-amber-100/10 via-transparent to-black pointer-events-none"></div>
+
+        <!-- Film Sprocket holes decorative bars -->
+        <div class="absolute left-2 top-0 bottom-0 flex flex-col justify-between py-2 pointer-events-none opacity-30">
+          @for (i of [1,2,3,4,5,6,7,8]; track i) {
+            <div class="w-3 h-2 bg-white/20 rounded-xs"></div>
+          }
+        </div>
+        <div class="absolute right-2 top-0 bottom-0 flex flex-col justify-between py-2 pointer-events-none opacity-30">
+          @for (i of [1,2,3,4,5,6,7,8]; track i) {
+            <div class="w-3 h-2 bg-white/20 rounded-xs"></div>
+          }
+        </div>
+
+        <div class="text-center z-10 flex flex-col items-center gap-4">
+          <span class="lbl text-[var(--cobalt)] bg-white px-2 py-0.5 font-bold tracking-widest text-[11px]">
+            ARCHIVAL PRINT · LEON VASARI
+          </span>
+          <h2 class="font-serif-vasari text-[36px] md:text-[54px] tracking-tight leading-none text-white">
+            {{ activeFilm().title }}
+          </h2>
+          <p class="lbl text-white/70 text-[11px] tracking-widest">
+            {{ activeFilm().romaji }} / {{ activeFilm().kanji }} · {{ activeFilm().year }}
+          </p>
+          <div class="w-16 h-[1px] bg-white/30 my-2"></div>
+          <p class="font-serif-vasari italic text-white/80 max-w-[480px] text-sm md:text-base leading-relaxed">
+            "{{ activeFilm().synopsis }}"
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Screening Meta -->
+    <div class="flex items-center justify-between text-xs text-white/60 border-t border-white/20 pt-4">
+      <span class="lbl text-[9px] text-white/60">
+        DIRECTOR: LEON VASARI (監督: 莱昂·瓦萨里)
+      </span>
+      <span class="lbl text-[9px] text-white/60">
+        ARCHIVE PRESERVATION COPY · TOKYO / MILAN
+      </span>
+    </div>
+  </div>
+}
